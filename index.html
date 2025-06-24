@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>璀璨烟花 - 现代化烟花秀</title>
+    <title>璀璨烟花秀 - 多种烟花效果</title>
     <style>
         * {
             margin: 0;
@@ -57,6 +57,40 @@
             transform: scale(1.1);
         }
 
+        .firework-selector {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .firework-type {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .firework-type:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .firework-type.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
         .info-panel {
             position: fixed;
             bottom: 30px;
@@ -93,21 +127,6 @@
             50% { background-position: 100% 50%; }
         }
 
-        .particle-trail {
-            position: absolute;
-            pointer-events: none;
-            width: 4px;
-            height: 4px;
-            background: #fff;
-            border-radius: 50%;
-            animation: fadeOut 1s ease-out forwards;
-        }
-
-        @keyframes fadeOut {
-            0% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(0); }
-        }
-
         .loading {
             position: fixed;
             top: 0;
@@ -141,32 +160,51 @@
 
     <canvas id="canvas"></canvas>
     
+    <div class="firework-selector">
+        <div class="firework-type active" data-type="random">🎆 随机烟花</div>
+        <div class="firework-type" data-type="burst">💥 爆裂烟花</div>
+        <div class="firework-type" data-type="ring">⭕ 圆环烟花</div>
+        <div class="firework-type" data-type="heart">💖 心形烟花</div>
+        <div class="firework-type" data-type="star">⭐ 星形烟花</div>
+        <div class="firework-type" data-type="spiral">🌀 螺旋烟花</div>
+        <div class="firework-type" data-type="fountain">⛲ 喷泉烟花</div>
+        <div class="firework-type" data-type="willow">🌿 柳叶烟花</div>
+        <div class="firework-type" data-type="crossette">✨ 十字烟花</div>
+        <div class="firework-type" data-type="peony">🌸 牡丹烟花</div>
+    </div>
+    
     <div class="controls">
         <button class="control-btn" id="playBtn" title="播放/暂停">⏸️</button>
         <button class="control-btn" id="resetBtn" title="重置">🔄</button>
-        <button class="control-btn" id="musicBtn" title="音乐开关">🔊</button>
+        <button class="control-btn" id="autoBtn" title="自动模式">🤖</button>
     </div>
 
     <div class="info-panel">
         <h1>璀璨烟花秀</h1>
-        <p>点击屏幕任意位置放烟花</p>
-        <p>享受这场视觉盛宴</p>
+        <p>点击屏幕发射烟花 | 左侧选择烟花类型</p>
+        <p>体验10种不同的烟花效果</p>
     </div>
 
     <script>
-        class ModernFireworks {
+        class MultipleFireworks {
             constructor() {
                 this.canvas = document.getElementById('canvas');
                 this.ctx = this.canvas.getContext('2d');
                 this.fireworks = [];
                 this.particles = [];
                 this.isPlaying = true;
-                this.mouseX = 0;
-                this.mouseY = 0;
+                this.autoMode = false;
+                this.selectedType = 'random';
                 this.colors = [
                     '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
                     '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd',
-                    '#00d2d3', '#ff9f43', '#7bed9f', '#ff6348'
+                    '#00d2d3', '#ff9f43', '#7bed9f', '#ff6348',
+                    '#f8b500', '#e056fd', '#3742fa', '#2f3542'
+                ];
+                
+                this.fireworkTypes = [
+                    'burst', 'ring', 'heart', 'star', 'spiral', 
+                    'fountain', 'willow', 'crossette', 'peony'
                 ];
                 
                 this.init();
@@ -178,7 +216,6 @@
                 this.resizeCanvas();
                 this.ctx.globalCompositeOperation = 'screen';
                 
-                // 隐藏加载屏幕
                 setTimeout(() => {
                     document.getElementById('loading').style.opacity = '0';
                     setTimeout(() => {
@@ -199,12 +236,15 @@
                 
                 this.canvas.addEventListener('click', (e) => {
                     this.createFirework(e.clientX, e.clientY);
-                    this.createMouseTrail(e.clientX, e.clientY);
                 });
 
-                this.canvas.addEventListener('mousemove', (e) => {
-                    this.mouseX = e.clientX;
-                    this.mouseY = e.clientY;
+                // 烟花类型选择
+                document.querySelectorAll('.firework-type').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.firework-type').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.selectedType = e.target.dataset.type;
+                    });
                 });
 
                 // 控制按钮
@@ -218,31 +258,26 @@
                     this.particles = [];
                 });
 
+                document.getElementById('autoBtn').addEventListener('click', () => {
+                    this.autoMode = !this.autoMode;
+                    document.getElementById('autoBtn').style.background = this.autoMode ? 
+                        'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)';
+                });
+
                 // 触摸支持
                 this.canvas.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     const touch = e.touches[0];
                     this.createFirework(touch.clientX, touch.clientY);
-                    this.createMouseTrail(touch.clientX, touch.clientY);
                 });
-            }
-
-            createMouseTrail(x, y) {
-                const trail = document.createElement('div');
-                trail.className = 'particle-trail';
-                trail.style.left = x + 'px';
-                trail.style.top = y + 'px';
-                trail.style.background = this.getRandomColor();
-                document.body.appendChild(trail);
-                
-                setTimeout(() => {
-                    document.body.removeChild(trail);
-                }, 1000);
             }
 
             createFirework(targetX, targetY) {
                 const startX = Math.random() * this.canvas.width;
                 const startY = this.canvas.height;
+                const type = this.selectedType === 'random' ? 
+                    this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
+                    this.selectedType;
                 
                 this.fireworks.push({
                     x: startX,
@@ -250,24 +285,58 @@
                     targetX: targetX,
                     targetY: targetY,
                     speed: Math.random() * 3 + 7,
-                    acceleration: 1.05,
+                    acceleration: 1.02,
                     color: this.getRandomColor(),
                     trail: [],
                     exploded: false,
+                    type: type,
                     brightness: Math.random() * 30 + 70
                 });
             }
 
-            createExplosion(x, y, color) {
+            createExplosion(x, y, color, type) {
+                switch(type) {
+                    case 'burst':
+                        this.createBurstExplosion(x, y, color);
+                        break;
+                    case 'ring':
+                        this.createRingExplosion(x, y, color);
+                        break;
+                    case 'heart':
+                        this.createHeartExplosion(x, y, color);
+                        break;
+                    case 'star':
+                        this.createStarExplosion(x, y, color);
+                        break;
+                    case 'spiral':
+                        this.createSpiralExplosion(x, y, color);
+                        break;
+                    case 'fountain':
+                        this.createFountainExplosion(x, y, color);
+                        break;
+                    case 'willow':
+                        this.createWillowExplosion(x, y, color);
+                        break;
+                    case 'crossette':
+                        this.createCrossetteExplosion(x, y, color);
+                        break;
+                    case 'peony':
+                        this.createPeonyExplosion(x, y, color);
+                        break;
+                    default:
+                        this.createBurstExplosion(x, y, color);
+                }
+            }
+
+            // 爆裂烟花
+            createBurstExplosion(x, y, color) {
                 const particleCount = Math.random() * 50 + 80;
-                
                 for (let i = 0; i < particleCount; i++) {
                     const angle = (Math.PI * 2 * i) / particleCount;
                     const velocity = Math.random() * 8 + 4;
                     
                     this.particles.push({
-                        x: x,
-                        y: y,
+                        x: x, y: y,
                         vx: Math.cos(angle) * velocity,
                         vy: Math.sin(angle) * velocity,
                         life: 1,
@@ -275,40 +344,222 @@
                         color: this.getRandomColor(),
                         size: Math.random() * 4 + 2,
                         gravity: 0.1,
-                        resistance: 0.98,
-                        brightness: Math.random() * 30 + 70,
-                        twinkle: Math.random() > 0.5
+                        resistance: 0.98
                     });
-                }
-
-                // 创建二次爆炸效果
-                if (Math.random() > 0.7) {
-                    setTimeout(() => {
-                        this.createSecondaryExplosion(x, y);
-                    }, 300);
                 }
             }
 
-            createSecondaryExplosion(x, y) {
-                const particleCount = 30;
-                
+            // 圆环烟花
+            createRingExplosion(x, y, color) {
+                const rings = 3;
+                for (let ring = 0; ring < rings; ring++) {
+                    const particleCount = 30;
+                    const radius = (ring + 1) * 2;
+                    
+                    setTimeout(() => {
+                        for (let i = 0; i < particleCount; i++) {
+                            const angle = (Math.PI * 2 * i) / particleCount;
+                            const velocity = radius;
+                            
+                            this.particles.push({
+                                x: x, y: y,
+                                vx: Math.cos(angle) * velocity,
+                                vy: Math.sin(angle) * velocity,
+                                life: 1,
+                                decay: 0.015,
+                                color: this.getRandomColor(),
+                                size: 3,
+                                gravity: 0.05,
+                                resistance: 0.99
+                            });
+                        }
+                    }, ring * 100);
+                }
+            }
+
+            // 心形烟花
+            createHeartExplosion(x, y, color) {
+                const particleCount = 100;
                 for (let i = 0; i < particleCount; i++) {
-                    const angle = (Math.PI * 2 * i) / particleCount;
-                    const velocity = Math.random() * 4 + 2;
+                    const t = (i / particleCount) * Math.PI * 2;
+                    const heartX = 16 * Math.pow(Math.sin(t), 3);
+                    const heartY = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
                     
                     this.particles.push({
-                        x: x + (Math.random() - 0.5) * 50,
-                        y: y + (Math.random() - 0.5) * 50,
-                        vx: Math.cos(angle) * velocity,
-                        vy: Math.sin(angle) * velocity,
-                        life: 0.8,
-                        decay: Math.random() * 0.02 + 0.015,
-                        color: this.getRandomColor(),
-                        size: Math.random() * 3 + 1,
-                        gravity: 0.05,
-                        resistance: 0.95,
-                        brightness: Math.random() * 40 + 60
+                        x: x, y: y,
+                        vx: heartX / 8,
+                        vy: heartY / 8,
+                        life: 1,
+                        decay: 0.012,
+                        color: ['#ff6b6b', '#ff9ff3', '#feca57'][Math.floor(Math.random() * 3)],
+                        size: Math.random() * 3 + 2,
+                        gravity: 0.02,
+                        resistance: 0.99
                     });
+                }
+            }
+
+            // 星形烟花
+            createStarExplosion(x, y, color) {
+                const points = 5;
+                const particlesPerPoint = 20;
+                
+                for (let point = 0; point < points; point++) {
+                    const angle = (Math.PI * 2 * point) / points;
+                    
+                    for (let i = 0; i < particlesPerPoint; i++) {
+                        const velocity = Math.random() * 6 + 3;
+                        const spread = (Math.random() - 0.5) * 0.5;
+                        
+                        this.particles.push({
+                            x: x, y: y,
+                            vx: Math.cos(angle + spread) * velocity,
+                            vy: Math.sin(angle + spread) * velocity,
+                            life: 1,
+                            decay: 0.02,
+                            color: ['#feca57', '#ff9f43', '#ffdd59'][Math.floor(Math.random() * 3)],
+                            size: Math.random() * 4 + 1,
+                            gravity: 0.08,
+                            resistance: 0.98
+                        });
+                    }
+                }
+            }
+
+            // 螺旋烟花
+            createSpiralExplosion(x, y, color) {
+                const spirals = 2;
+                const particlesPerSpiral = 60;
+                
+                for (let spiral = 0; spiral < spirals; spiral++) {
+                    for (let i = 0; i < particlesPerSpiral; i++) {
+                        const t = (i / particlesPerSpiral) * Math.PI * 4;
+                        const radius = t * 0.8;
+                        const angle = t + spiral * Math.PI;
+                        
+                        this.particles.push({
+                            x: x, y: y,
+                            vx: Math.cos(angle) * radius / 8,
+                            vy: Math.sin(angle) * radius / 8,
+                            life: 1,
+                            decay: 0.015,
+                            color: ['#4ecdc4', '#45b7d1', '#96ceb4'][spiral],
+                            size: Math.random() * 3 + 2,
+                            gravity: 0.06,
+                            resistance: 0.99
+                        });
+                    }
+                }
+            }
+
+            // 喷泉烟花
+            createFountainExplosion(x, y, color) {
+                const particleCount = 150;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = Math.random() * Math.PI * 0.6 + Math.PI * 0.7; // 向上喷射
+                    const velocity = Math.random() * 10 + 5;
+                    
+                    this.particles.push({
+                        x: x + (Math.random() - 0.5) * 20,
+                        y: y,
+                        vx: Math.cos(angle) * velocity * 0.3,
+                        vy: Math.sin(angle) * velocity,
+                        life: 1,
+                        decay: 0.008,
+                        color: ['#00d2d3', '#4ecdc4', '#45b7d1'][Math.floor(Math.random() * 3)],
+                        size: Math.random() * 3 + 1,
+                        gravity: 0.15,
+                        resistance: 0.96
+                    });
+                }
+            }
+
+            // 柳叶烟花
+            createWillowExplosion(x, y, color) {
+                const branches = 8;
+                const particlesPerBranch = 25;
+                
+                for (let branch = 0; branch < branches; branch++) {
+                    const angle = (Math.PI * 2 * branch) / branches;
+                    
+                    for (let i = 0; i < particlesPerBranch; i++) {
+                        const velocity = Math.random() * 4 + 2;
+                        const drift = (Math.random() - 0.5) * 0.3;
+                        
+                        this.particles.push({
+                            x: x, y: y,
+                            vx: Math.cos(angle + drift) * velocity,
+                            vy: Math.sin(angle + drift) * velocity,
+                            life: 1,
+                            decay: 0.006,
+                            color: ['#7bed9f', '#96ceb4', '#6c5ce7'][Math.floor(Math.random() * 3)],
+                            size: Math.random() * 2 + 1,
+                            gravity: 0.2,
+                            resistance: 0.94,
+                            trail: []
+                        });
+                    }
+                }
+            }
+
+            // 十字烟花
+            createCrossetteExplosion(x, y, color) {
+                // 主爆炸
+                this.createBurstExplosion(x, y, color);
+                
+                // 延迟的十字爆炸
+                setTimeout(() => {
+                    const directions = [0, Math.PI/2, Math.PI, Math.PI*3/2];
+                    directions.forEach(angle => {
+                        const distance = 50;
+                        const newX = x + Math.cos(angle) * distance;
+                        const newY = y + Math.sin(angle) * distance;
+                        
+                        for (let i = 0; i < 20; i++) {
+                            const particleAngle = angle + (Math.random() - 0.5) * 0.8;
+                            const velocity = Math.random() * 6 + 3;
+                            
+                            this.particles.push({
+                                x: newX, y: newY,
+                                vx: Math.cos(particleAngle) * velocity,
+                                vy: Math.sin(particleAngle) * velocity,
+                                life: 0.8,
+                                decay: 0.02,
+                                color: this.getRandomColor(),
+                                size: Math.random() * 3 + 2,
+                                gravity: 0.1,
+                                resistance: 0.98
+                            });
+                        }
+                    });
+                }, 300);
+            }
+
+            // 牡丹烟花
+            createPeonyExplosion(x, y, color) {
+                const layers = 4;
+                for (let layer = 0; layer < layers; layer++) {
+                    const particleCount = 30 - layer * 5;
+                    const delay = layer * 80;
+                    
+                    setTimeout(() => {
+                        for (let i = 0; i < particleCount; i++) {
+                            const angle = (Math.PI * 2 * i) / particleCount;
+                            const velocity = (4 - layer) * 2;
+                            
+                            this.particles.push({
+                                x: x, y: y,
+                                vx: Math.cos(angle) * velocity,
+                                vy: Math.sin(angle) * velocity,
+                                life: 1,
+                                decay: 0.015,
+                                color: ['#ff9ff3', '#ff6b6b', '#feca57', '#e056fd'][layer],
+                                size: (4 - layer) + 1,
+                                gravity: 0.08,
+                                resistance: 0.97
+                            });
+                        }
+                    }, delay);
                 }
             }
 
@@ -317,8 +568,8 @@
             }
 
             autoLaunch() {
-                if (this.isPlaying) {
-                    if (Math.random() > 0.97) {
+                if (this.isPlaying && this.autoMode) {
+                    if (Math.random() > 0.95) {
                         const x = Math.random() * this.canvas.width;
                         const y = Math.random() * (this.canvas.height * 0.4) + 50;
                         this.createFirework(x, y);
@@ -332,19 +583,17 @@
                 for (let i = this.fireworks.length - 1; i >= 0; i--) {
                     const firework = this.fireworks[i];
                     
-                    // 添加轨迹
                     firework.trail.push({ x: firework.x, y: firework.y });
                     if (firework.trail.length > 8) {
                         firework.trail.shift();
                     }
                     
-                    // 移动烟花
                     const dx = firework.targetX - firework.x;
                     const dy = firework.targetY - firework.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance < firework.speed || firework.y <= firework.targetY) {
-                        this.createExplosion(firework.x, firework.y, firework.color);
+                        this.createExplosion(firework.x, firework.y, firework.color, firework.type);
                         this.fireworks.splice(i, 1);
                     } else {
                         firework.x += dx / distance * firework.speed;
@@ -373,7 +622,6 @@
             }
 
             draw() {
-                // 渐变背景清除效果
                 this.ctx.globalCompositeOperation = 'destination-out';
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -381,7 +629,6 @@
 
                 // 绘制烟花
                 this.fireworks.forEach(firework => {
-                    // 绘制轨迹
                     this.ctx.beginPath();
                     this.ctx.moveTo(firework.trail[0]?.x || firework.x, firework.trail[0]?.y || firework.y);
                     
@@ -393,7 +640,6 @@
                     this.ctx.lineWidth = 3;
                     this.ctx.stroke();
                     
-                    // 绘制烟花本体
                     const gradient = this.ctx.createRadialGradient(
                         firework.x, firework.y, 0,
                         firework.x, firework.y, 8
@@ -412,36 +658,19 @@
                     const alpha = particle.life;
                     const size = particle.size * alpha;
                     
-                    if (particle.twinkle) {
-                        particle.brightness += Math.sin(Date.now() * 0.01) * 10;
-                    }
-                    
                     const gradient = this.ctx.createRadialGradient(
                         particle.x, particle.y, 0,
                         particle.x, particle.y, size
                     );
                     
-                    const color = particle.color;
-                    gradient.addColorStop(0, color);
-                    gradient.addColorStop(0.5, color + '80');
+                    gradient.addColorStop(0, particle.color);
+                    gradient.addColorStop(0.5, particle.color + '80');
                     gradient.addColorStop(1, 'transparent');
                     
                     this.ctx.beginPath();
                     this.ctx.fillStyle = gradient;
                     this.ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
                     this.ctx.fill();
-                    
-                    // 闪烁效果
-                    if (particle.twinkle && Math.random() > 0.8) {
-                        this.ctx.beginPath();
-                        this.ctx.strokeStyle = '#ffffff';
-                        this.ctx.lineWidth = 1;
-                        this.ctx.moveTo(particle.x - size * 1.5, particle.y);
-                        this.ctx.lineTo(particle.x + size * 1.5, particle.y);
-                        this.ctx.moveTo(particle.x, particle.y - size * 1.5);
-                        this.ctx.lineTo(particle.x, particle.y + size * 1.5);
-                        this.ctx.stroke();
-                    }
                 });
             }
 
@@ -456,8 +685,8 @@
             }
         }
 
-        // 启动烟花秀
-        new ModernFireworks();
+        // 启动多种烟花秀
+        new MultipleFireworks();
     </script>
 </body>
 </html>
