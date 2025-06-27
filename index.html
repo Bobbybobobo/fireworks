@@ -730,22 +730,19 @@
             const audio = document.createElement('audio');
             audio.src = '1.mp3';
             audio.loop = true;
+            audio.muted = true; // 静音
             audio.autoplay = true;
             audio.style.display = 'none';
             document.body.appendChild(audio);
-            // 兼容部分浏览器需用户交互后播放
-            function tryPlay() {
+
+            function unlockAudio() {
+                audio.muted = false;
                 audio.play();
-                document.removeEventListener('click', tryPlay);
-                document.removeEventListener('touchstart', tryPlay);
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
             }
-            audio.addEventListener('play', () => {
-                // 播放成功后移除事件
-                document.removeEventListener('click', tryPlay);
-                document.removeEventListener('touchstart', tryPlay);
-            });
-            document.addEventListener('click', tryPlay);
-            document.addEventListener('touchstart', tryPlay);
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('touchstart', unlockAudio);
         })();
         // 启动多种烟花秀
         new MultipleFireworks();
