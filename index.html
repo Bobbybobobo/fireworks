@@ -177,6 +177,7 @@
         <button class="control-btn" id="playBtn" title="播放/暂停">⏸️</button>
         <button class="control-btn" id="resetBtn" title="重置">🔄</button>
         <button class="control-btn" id="autoBtn" title="自动模式">🤖</button>
+        <button class="control-btn" id="muteBtn" title="静音/取消静音">🔊</button>
     </div>
 
     <div class="info-panel">
@@ -738,11 +739,29 @@
             function unlockAudio() {
                 audio.muted = false;
                 audio.play();
+                updateMuteBtn();
                 document.removeEventListener('click', unlockAudio);
                 document.removeEventListener('touchstart', unlockAudio);
             }
             document.addEventListener('click', unlockAudio);
             document.addEventListener('touchstart', unlockAudio);
+
+            // 静音按钮逻辑
+            function updateMuteBtn() {
+                const muteBtn = document.getElementById('muteBtn');
+                if (!muteBtn) return;
+                muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+            }
+            window.addEventListener('DOMContentLoaded', () => {
+                const muteBtn = document.getElementById('muteBtn');
+                if (muteBtn) {
+                    muteBtn.onclick = function() {
+                        audio.muted = !audio.muted;
+                        updateMuteBtn();
+                    };
+                    updateMuteBtn();
+                }
+            });
         })();
         // 启动多种烟花秀
         new MultipleFireworks();
