@@ -314,12 +314,15 @@
             createFirework(targetX, targetY) {
                 const width = this.canvas.width;
                 const height = this.canvas.height;
-                // 最大爆炸半径为可视区25%，即直径50%
-                const maxRadius = Math.min(width, height) * 0.25;
-                const minX = maxRadius;
-                const maxX = width - maxRadius;
-                const minY = maxRadius;
-                const maxY = height - maxRadius;
+                // 最大允许半径（直径50%）
+                const maxAllowedRadius = Math.min(width, height) * 0.25;
+                // 针对心形烟花，最大点为17倍scale，需保证scale安全
+                const heartSafeFactor = 17;
+                // 先用最大允许半径做初步边界
+                let minX = maxAllowedRadius;
+                let maxX = width - maxAllowedRadius;
+                let minY = maxAllowedRadius;
+                let maxY = height - maxAllowedRadius;
                 // 自动/无参数时，爆炸目标点随机且不超出边界
                 if (typeof targetX !== 'number' || typeof targetY !== 'number') {
                     targetX = Math.random() * (maxX - minX) + minX;
@@ -329,13 +332,23 @@
                     targetX = Math.max(minX, Math.min(targetX, maxX));
                     targetY = Math.max(minY, Math.min(targetY, maxY));
                 }
-                // 以爆炸点到四边的最小距离和maxRadius取最小值为本次爆炸半径
-                const radius = Math.min(targetX, width - targetX, targetY, height - targetY, maxRadius);
-                const startX = Math.random() * width;
-                const startY = height;
+                // 针对心形烟花，安全半径需更小
+                let safeRadius = Math.min(
+                    maxAllowedRadius,
+                    targetX, width - targetX,
+                    targetY, height - targetY
+                );
+                // 预留心形烟花安全半径
                 const type = this.selectedType === 'random' ? 
                     this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
                     this.selectedType;
+                let heartRadius = safeRadius;
+                if (type === 'heart') {
+                    heartRadius = Math.min(safeRadius, maxAllowedRadius, targetX / heartSafeFactor, (width - targetX) / heartSafeFactor, targetY / heartSafeFactor, (height - targetY) / heartSafeFactor);
+                }
+                // 发射起点仍为底部任意位置
+                const startX = Math.random() * width;
+                const startY = height;
                 this.fireworks.push({
                     x: startX,
                     y: startY,
@@ -348,7 +361,7 @@
                     exploded: false,
                     type: type,
                     brightness: Math.random() * 30 + 70,
-                    maxRadius: radius // 传递给爆炸函数
+                    maxRadius: type === 'heart' ? heartRadius : safeRadius
                 });
             }
 
@@ -397,7 +410,7 @@
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const angle = (Math.PI * 2 * i) / particleCount;
-                    const velocity = radius * (0.85 + Math.random() * 0.15); // 保证粒子不会超出
+                    const velocity = radius * (0.85 + Math.random() * 0.15);
                     this.particles.push({
                         x: x, y: y,
                         vx: Math.cos(angle) * velocity / 30,
@@ -445,7 +458,8 @@
             createHeartExplosion(x, y, color, maxRadius) {
                 const baseCount = 48;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
-                const scale = maxRadius * 0.12;
+                // scale = 半径/17，确保所有点都在爆炸半径内
+                const scale = maxRadius / 17;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const t = (i / particleCount) * Math.PI * 2;
