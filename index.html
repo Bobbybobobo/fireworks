@@ -316,13 +316,21 @@
                 const height = this.canvas.height;
                 // 最大允许半径（直径50%）
                 const maxAllowedRadius = Math.min(width, height) * 0.25;
-                // 针对心形烟花，最大点为17倍scale，需保证scale安全
                 const heartSafeFactor = 17;
+                // info-panel为"人"，爆炸点Y坐标不能低于info-panel顶部减安全距离
+                const infoPanel = document.querySelector('.info-panel');
+                let infoPanelTop = height;
+                if (infoPanel) {
+                    const rect = infoPanel.getBoundingClientRect();
+                    // rect.top为视口坐标，需加上页面滚动偏移
+                    infoPanelTop = rect.top + window.scrollY;
+                }
+                const minSafeGap = 80; // 烟花与"人"顶部最小距离
                 // 先用最大允许半径做初步边界
                 let minX = maxAllowedRadius;
                 let maxX = width - maxAllowedRadius;
                 let minY = maxAllowedRadius;
-                let maxY = height - maxAllowedRadius;
+                let maxY = Math.max(minY, infoPanelTop - minSafeGap); // 不能低于info-panel上方
                 // 自动/无参数时，爆炸目标点随机且不超出边界
                 if (typeof targetX !== 'number' || typeof targetY !== 'number') {
                     targetX = Math.random() * (maxX - minX) + minX;
@@ -336,15 +344,14 @@
                 let safeRadius = Math.min(
                     maxAllowedRadius,
                     targetX, width - targetX,
-                    targetY, height - targetY
+                    targetY, maxY - targetY // 爆炸点到info-panel顶部距离
                 );
-                // 预留心形烟花安全半径
                 const type = this.selectedType === 'random' ? 
                     this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
                     this.selectedType;
                 let heartRadius = safeRadius;
                 if (type === 'heart') {
-                    heartRadius = Math.min(safeRadius, maxAllowedRadius, targetX / heartSafeFactor, (width - targetX) / heartSafeFactor, targetY / heartSafeFactor, (height - targetY) / heartSafeFactor);
+                    heartRadius = Math.min(safeRadius, maxAllowedRadius, targetX / heartSafeFactor, (width - targetX) / heartSafeFactor, targetY / heartSafeFactor, (maxY - targetY) / heartSafeFactor);
                 }
                 // 发射起点仍为底部任意位置
                 const startX = Math.random() * width;
