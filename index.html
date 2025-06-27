@@ -312,17 +312,26 @@
                 }, 80));
             }
             createFirework(targetX, targetY) {
-                // 爆炸中心点随机分布在屏幕不同区域
+                // 爆炸半径
+                const radius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                // 爆炸中心点随机分布在屏幕不同区域，且不超出边界
+                const minX = radius;
+                const maxX = this.canvas.width - radius;
+                const minY = radius;
+                const maxY = this.canvas.height - radius;
                 const startX = Math.random() * this.canvas.width;
                 const startY = this.canvas.height;
                 const type = this.selectedType === 'random' ? 
                     this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
                     this.selectedType;
-                // 爆炸目标点随机分布，避免都在中心
+                // 自动/无参数时，爆炸目标点随机且不超出边界
                 if (typeof targetX !== 'number' || typeof targetY !== 'number') {
-                    // 自动模式下，随机分布在屏幕不同区域
-                    targetX = Math.random() * this.canvas.width * 0.8 + this.canvas.width * 0.1;
-                    targetY = Math.random() * this.canvas.height * 0.5 + this.canvas.height * 0.1;
+                    targetX = Math.random() * (maxX - minX) + minX;
+                    targetY = Math.random() * (maxY - minY) + minY;
+                } else {
+                    // 手动点击时，若超出边界自动修正
+                    targetX = Math.max(minX, Math.min(targetX, maxX));
+                    targetY = Math.max(minY, Math.min(targetY, maxY));
                 }
                 this.fireworks.push({
                     x: startX,
