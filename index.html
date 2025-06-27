@@ -312,18 +312,14 @@
                 }, 80));
             }
             createFirework(targetX, targetY) {
-                // 爆炸半径
-                const radius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
-                // 爆炸中心点随机分布在屏幕不同区域，且不超出边界
-                const minX = radius;
-                const maxX = this.canvas.width - radius;
-                const minY = radius;
-                const maxY = this.canvas.height - radius;
-                const startX = Math.random() * this.canvas.width;
-                const startY = this.canvas.height;
-                const type = this.selectedType === 'random' ? 
-                    this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
-                    this.selectedType;
+                const width = this.canvas.width;
+                const height = this.canvas.height;
+                // 先用最大可能半径（屏幕25%）做初步边界
+                const maxPossibleRadius = Math.min(width, height) * 0.25;
+                let minX = maxPossibleRadius;
+                let maxX = width - maxPossibleRadius;
+                let minY = maxPossibleRadius;
+                let maxY = height - maxPossibleRadius;
                 // 自动/无参数时，爆炸目标点随机且不超出边界
                 if (typeof targetX !== 'number' || typeof targetY !== 'number') {
                     targetX = Math.random() * (maxX - minX) + minX;
@@ -333,6 +329,14 @@
                     targetX = Math.max(minX, Math.min(targetX, maxX));
                     targetY = Math.max(minY, Math.min(targetY, maxY));
                 }
+                // 以爆炸点到四边的最小距离为本次爆炸最大半径
+                const maxRadius = Math.min(targetX, width - targetX, targetY, height - targetY);
+                // 发射起点仍为底部任意位置
+                const startX = Math.random() * width;
+                const startY = height;
+                const type = this.selectedType === 'random' ? 
+                    this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
+                    this.selectedType;
                 this.fireworks.push({
                     x: startX,
                     y: startY,
@@ -344,58 +348,60 @@
                     trail: [],
                     exploded: false,
                     type: type,
-                    brightness: Math.random() * 30 + 70
+                    brightness: Math.random() * 30 + 70,
+                    maxRadius: maxRadius // 传递给爆炸函数
                 });
             }
 
             createExplosion(x, y, color, type) {
+                // 获取本次爆炸的最大半径
+                const fw = this.fireworks.find(fw => Math.abs(fw.x - x) < 1 && Math.abs(fw.y - y) < 1);
+                const maxRadius = (fw && fw.maxRadius) || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 switch(type) {
                     case 'burst':
-                        this.createBurstExplosion(x, y, color);
+                        this.createBurstExplosion(x, y, color, maxRadius);
                         break;
                     case 'ring':
-                        this.createRingExplosion(x, y, color);
+                        this.createRingExplosion(x, y, color, maxRadius);
                         break;
                     case 'heart':
-                        this.createHeartExplosion(x, y, color);
+                        this.createHeartExplosion(x, y, color, maxRadius);
                         break;
                     case 'star':
-                        this.createStarExplosion(x, y, color);
+                        this.createStarExplosion(x, y, color, maxRadius);
                         break;
                     case 'spiral':
-                        this.createSpiralExplosion(x, y, color);
+                        this.createSpiralExplosion(x, y, color, maxRadius);
                         break;
                     case 'fountain':
-                        this.createFountainExplosion(x, y, color);
+                        this.createFountainExplosion(x, y, color, maxRadius);
                         break;
                     case 'willow':
-                        this.createWillowExplosion(x, y, color);
+                        this.createWillowExplosion(x, y, color, maxRadius);
                         break;
                     case 'crossette':
-                        this.createCrossetteExplosion(x, y, color);
+                        this.createCrossetteExplosion(x, y, color, maxRadius);
                         break;
                     case 'peony':
-                        this.createPeonyExplosion(x, y, color);
+                        this.createPeonyExplosion(x, y, color, maxRadius);
                         break;
                     default:
-                        this.createBurstExplosion(x, y, color);
+                        this.createBurstExplosion(x, y, color, maxRadius);
                 }
             }
 
             // 爆裂烟花
-            createBurstExplosion(x, y, color) {
-                // 大爆炸：粒子数量适当减少，速度/半径变大
-                const baseCount = 40 + Math.random() * 20; // 40~60
+            createBurstExplosion(x, y, color, maxRadius) {
+                const baseCount = 40 + Math.random() * 20;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
-                // 爆炸半径
-                const radius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                const radius = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const angle = (Math.PI * 2 * i) / particleCount;
-                    const velocity = radius * (0.85 + Math.random() * 0.3); // 适当随机
+                    const velocity = radius * (0.85 + Math.random() * 0.3);
                     this.particles.push({
                         x: x, y: y,
-                        vx: Math.cos(angle) * velocity / 30, // 速度适配大半径
+                        vx: Math.cos(angle) * velocity / 30,
                         vy: Math.sin(angle) * velocity / 30,
                         life: 1.2 * this.particleLifeMultiplier,
                         decay: (Math.random() * 0.02 + 0.008) / this.particleLifeMultiplier,
@@ -408,11 +414,11 @@
             }
 
             // 圆环烟花
-            createRingExplosion(x, y, color) {
+            createRingExplosion(x, y, color, maxRadius) {
                 const rings = 3;
                 const baseCount = 16;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
-                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.12;
+                const baseRadius = (maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25) * 0.4;
                 for (let ring = 0; ring < rings; ring++) {
                     const radius = baseRadius * (ring + 1);
                     setTimeout(() => {
@@ -437,10 +443,10 @@
             }
 
             // 心形烟花
-            createHeartExplosion(x, y, color) {
+            createHeartExplosion(x, y, color, maxRadius) {
                 const baseCount = 48;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
-                const scale = Math.min(this.canvas.width, this.canvas.height) * 0.03;
+                const scale = (maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25) * 0.12;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const t = (i / particleCount) * Math.PI * 2;
@@ -461,11 +467,11 @@
             }
 
             // 星形烟花
-            createStarExplosion(x, y, color) {
+            createStarExplosion(x, y, color, maxRadius) {
                 const points = 5;
                 const basePerPoint = 10;
                 const particlesPerPoint = Math.floor(basePerPoint * this.particleMultiplier);
-                const radius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                const radius = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let point = 0; point < points; point++) {
                     const angle = (Math.PI * 2 * point) / points;
                     for (let i = 0; i < particlesPerPoint; i++) {
@@ -488,11 +494,11 @@
             }
 
             // 螺旋烟花
-            createSpiralExplosion(x, y, color) {
+            createSpiralExplosion(x, y, color, maxRadius) {
                 const spirals = 2;
                 const basePerSpiral = 24;
                 const particlesPerSpiral = Math.floor(basePerSpiral * this.particleMultiplier);
-                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                const baseRadius = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let spiral = 0; spiral < spirals; spiral++) {
                     for (let i = 0; i < particlesPerSpiral; i++) {
                         if (this.particles.length >= this.maxParticles) break;
@@ -515,10 +521,10 @@
             }
 
             // 喷泉烟花
-            createFountainExplosion(x, y, color) {
+            createFountainExplosion(x, y, color, maxRadius) {
                 const baseCount = 40;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
-                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                const baseRadius = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const angle = Math.random() * Math.PI * 0.6 + Math.PI * 0.7;
@@ -539,11 +545,11 @@
             }
 
             // 柳叶烟花
-            createWillowExplosion(x, y, color) {
+            createWillowExplosion(x, y, color, maxRadius) {
                 const branches = 8;
                 const basePerBranch = 8;
                 const particlesPerBranch = Math.floor(basePerBranch * this.particleMultiplier);
-                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                const baseRadius = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let branch = 0; branch < branches; branch++) {
                     const angle = (Math.PI * 2 * branch) / branches;
                     for (let i = 0; i < particlesPerBranch; i++) {
@@ -567,13 +573,13 @@
             }
 
             // 十字烟花
-            createCrossetteExplosion(x, y, color) {
-                this.createBurstExplosion(x, y, color);
+            createCrossetteExplosion(x, y, color, maxRadius) {
+                this.createBurstExplosion(x, y, color, maxRadius);
                 setTimeout(() => {
                     const directions = [0, Math.PI/2, Math.PI, Math.PI*3/2];
                     const baseCount = 8;
+                    const distance = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                     for (const angle of directions) {
-                        const distance = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                         const newX = x + Math.cos(angle) * distance;
                         const newY = y + Math.sin(angle) * distance;
                         for (let i = 0; i < baseCount * this.particleMultiplier; i++) {
@@ -597,10 +603,10 @@
             }
 
             // 牡丹烟花
-            createPeonyExplosion(x, y, color) {
+            createPeonyExplosion(x, y, color, maxRadius) {
                 const layers = 3;
                 const baseCount = 16;
-                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+                const baseRadius = maxRadius || Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let layer = 0; layer < layers; layer++) {
                     const particleCount = Math.floor(baseCount * this.particleMultiplier);
                     const delay = layer * 80;
