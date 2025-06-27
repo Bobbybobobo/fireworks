@@ -223,7 +223,7 @@
                 this.fireworks = [];
                 this.particles = [];
                 this.isPlaying = true;
-                this.autoMode = false;
+                this.autoMode = true;
                 this.selectedType = 'random';
                 this.colors = [
                     '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
@@ -249,6 +249,11 @@
                 this.init();
                 this.setupEvents();
                 this.autoLaunch();
+                // 自动高亮autoBtn
+                window.addEventListener('DOMContentLoaded', () => {
+                    const autoBtn = document.getElementById('autoBtn');
+                    if (autoBtn) autoBtn.style.background = 'rgba(255, 255, 255, 0.3)';
+                });
             }
             // canvas适配高分屏
             resizeCanvas() {
@@ -720,6 +725,28 @@
                 requestAnimationFrame((t) => this.animate(t));
             }
         }
+        // 背景音乐自动播放
+        (function playBgMusic() {
+            const audio = document.createElement('audio');
+            audio.src = '1.mp3';
+            audio.loop = true;
+            audio.autoplay = true;
+            audio.style.display = 'none';
+            document.body.appendChild(audio);
+            // 兼容部分浏览器需用户交互后播放
+            function tryPlay() {
+                audio.play();
+                document.removeEventListener('click', tryPlay);
+                document.removeEventListener('touchstart', tryPlay);
+            }
+            audio.addEventListener('play', () => {
+                // 播放成功后移除事件
+                document.removeEventListener('click', tryPlay);
+                document.removeEventListener('touchstart', tryPlay);
+            });
+            document.addEventListener('click', tryPlay);
+            document.addEventListener('touchstart', tryPlay);
+        })();
         // 启动多种烟花秀
         new MultipleFireworks();
     </script>
