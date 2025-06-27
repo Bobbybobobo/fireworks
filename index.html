@@ -247,6 +247,7 @@
                 this.frameRate = cfg.frameRate;
                 this.afterglow = cfg.afterglow;
                 this.lastFrameTime = 0;
+                this.maxSimultaneousFireworks = 2; // 自动模式下同屏最多2个烟花
                 this.init();
                 this.setupEvents();
                 this.autoLaunch();
@@ -311,12 +312,18 @@
                 }, 80));
             }
             createFirework(targetX, targetY) {
+                // 爆炸中心点随机分布在屏幕不同区域
                 const startX = Math.random() * this.canvas.width;
                 const startY = this.canvas.height;
                 const type = this.selectedType === 'random' ? 
                     this.fireworkTypes[Math.floor(Math.random() * this.fireworkTypes.length)] : 
                     this.selectedType;
-                
+                // 爆炸目标点随机分布，避免都在中心
+                if (typeof targetX !== 'number' || typeof targetY !== 'number') {
+                    // 自动模式下，随机分布在屏幕不同区域
+                    targetX = Math.random() * this.canvas.width * 0.8 + this.canvas.width * 0.1;
+                    targetY = Math.random() * this.canvas.height * 0.5 + this.canvas.height * 0.1;
+                }
                 this.fireworks.push({
                     x: startX,
                     y: startY,
@@ -368,23 +375,25 @@
 
             // 爆裂烟花
             createBurstExplosion(x, y, color) {
-                // 优化：移动端减少粒子数量
-                const baseCount = Math.random() * 50 + 80;
+                // 大爆炸：粒子数量适当减少，速度/半径变大
+                const baseCount = 40 + Math.random() * 20; // 40~60
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
+                // 爆炸半径
+                const radius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const angle = (Math.PI * 2 * i) / particleCount;
-                    const velocity = Math.random() * 8 + 4;
+                    const velocity = radius * (0.85 + Math.random() * 0.3); // 适当随机
                     this.particles.push({
                         x: x, y: y,
-                        vx: Math.cos(angle) * velocity,
-                        vy: Math.sin(angle) * velocity,
-                        life: 1 * this.particleLifeMultiplier,
-                        decay: (Math.random() * 0.03 + 0.01) / this.particleLifeMultiplier,
+                        vx: Math.cos(angle) * velocity / 30, // 速度适配大半径
+                        vy: Math.sin(angle) * velocity / 30,
+                        life: 1.2 * this.particleLifeMultiplier,
+                        decay: (Math.random() * 0.02 + 0.008) / this.particleLifeMultiplier,
                         color: this.getRandomColor(),
                         size: Math.random() * 4 + 2,
-                        gravity: 0.1,
-                        resistance: 0.98
+                        gravity: 0.08,
+                        resistance: 0.97
                     });
                 }
             }
@@ -392,10 +401,11 @@
             // 圆环烟花
             createRingExplosion(x, y, color) {
                 const rings = 3;
+                const baseCount = 16;
+                const particleCount = Math.floor(baseCount * this.particleMultiplier);
+                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.12;
                 for (let ring = 0; ring < rings; ring++) {
-                    const baseCount = 30;
-                    const particleCount = Math.floor(baseCount * this.particleMultiplier);
-                    const radius = (ring + 1) * 2;
+                    const radius = baseRadius * (ring + 1);
                     setTimeout(() => {
                         for (let i = 0; i < particleCount; i++) {
                             if (this.particles.length >= this.maxParticles) break;
@@ -403,14 +413,14 @@
                             const velocity = radius;
                             this.particles.push({
                                 x: x, y: y,
-                                vx: Math.cos(angle) * velocity,
-                                vy: Math.sin(angle) * velocity,
-                                life: 1 * this.particleLifeMultiplier,
-                                decay: 0.015 / this.particleLifeMultiplier,
+                                vx: Math.cos(angle) * velocity / 30,
+                                vy: Math.sin(angle) * velocity / 30,
+                                life: 1.2 * this.particleLifeMultiplier,
+                                decay: 0.012 / this.particleLifeMultiplier,
                                 color: this.getRandomColor(),
                                 size: 3,
                                 gravity: 0.05,
-                                resistance: 0.99
+                                resistance: 0.98
                             });
                         }
                     }, ring * 100);
@@ -419,23 +429,24 @@
 
             // 心形烟花
             createHeartExplosion(x, y, color) {
-                const baseCount = 100;
+                const baseCount = 48;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
+                const scale = Math.min(this.canvas.width, this.canvas.height) * 0.03;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const t = (i / particleCount) * Math.PI * 2;
-                    const heartX = 16 * Math.pow(Math.sin(t), 3);
-                    const heartY = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                    const heartX = 16 * Math.pow(Math.sin(t), 3) * scale;
+                    const heartY = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * scale;
                     this.particles.push({
                         x: x, y: y,
-                        vx: heartX / 8,
-                        vy: heartY / 8,
-                        life: 1 * this.particleLifeMultiplier,
+                        vx: heartX / 15,
+                        vy: heartY / 15,
+                        life: 1.2 * this.particleLifeMultiplier,
                         decay: 0.012 / this.particleLifeMultiplier,
                         color: ['#ff6b6b', '#ff9ff3', '#feca57'][Math.floor(Math.random() * 3)],
                         size: Math.random() * 3 + 2,
                         gravity: 0.02,
-                        resistance: 0.99
+                        resistance: 0.98
                     });
                 }
             }
@@ -443,24 +454,25 @@
             // 星形烟花
             createStarExplosion(x, y, color) {
                 const points = 5;
-                const basePerPoint = 20;
+                const basePerPoint = 10;
                 const particlesPerPoint = Math.floor(basePerPoint * this.particleMultiplier);
+                const radius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let point = 0; point < points; point++) {
                     const angle = (Math.PI * 2 * point) / points;
                     for (let i = 0; i < particlesPerPoint; i++) {
                         if (this.particles.length >= this.maxParticles) break;
-                        const velocity = Math.random() * 6 + 3;
+                        const velocity = radius * (0.85 + Math.random() * 0.3);
                         const spread = (Math.random() - 0.5) * 0.5;
                         this.particles.push({
                             x: x, y: y,
-                            vx: Math.cos(angle + spread) * velocity,
-                            vy: Math.sin(angle + spread) * velocity,
-                            life: 1 * this.particleLifeMultiplier,
-                            decay: 0.02 / this.particleLifeMultiplier,
+                            vx: Math.cos(angle + spread) * velocity / 30,
+                            vy: Math.sin(angle + spread) * velocity / 30,
+                            life: 1.2 * this.particleLifeMultiplier,
+                            decay: 0.014 / this.particleLifeMultiplier,
                             color: ['#feca57', '#ff9f43', '#ffdd59'][Math.floor(Math.random() * 3)],
                             size: Math.random() * 4 + 1,
                             gravity: 0.08,
-                            resistance: 0.98
+                            resistance: 0.97
                         });
                     }
                 }
@@ -469,24 +481,25 @@
             // 螺旋烟花
             createSpiralExplosion(x, y, color) {
                 const spirals = 2;
-                const basePerSpiral = 60;
+                const basePerSpiral = 24;
                 const particlesPerSpiral = Math.floor(basePerSpiral * this.particleMultiplier);
+                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let spiral = 0; spiral < spirals; spiral++) {
                     for (let i = 0; i < particlesPerSpiral; i++) {
                         if (this.particles.length >= this.maxParticles) break;
                         const t = (i / particlesPerSpiral) * Math.PI * 4;
-                        const radius = t * 0.8;
+                        const radius = baseRadius * (0.7 + 0.6 * t / (Math.PI * 4));
                         const angle = t + spiral * Math.PI;
                         this.particles.push({
                             x: x, y: y,
-                            vx: Math.cos(angle) * radius / 8,
-                            vy: Math.sin(angle) * radius / 8,
-                            life: 1 * this.particleLifeMultiplier,
-                            decay: 0.015 / this.particleLifeMultiplier,
+                            vx: Math.cos(angle) * radius / 30,
+                            vy: Math.sin(angle) * radius / 30,
+                            life: 1.2 * this.particleLifeMultiplier,
+                            decay: 0.012 / this.particleLifeMultiplier,
                             color: ['#4ecdc4', '#45b7d1', '#96ceb4'][spiral],
                             size: Math.random() * 3 + 2,
                             gravity: 0.06,
-                            resistance: 0.99
+                            resistance: 0.98
                         });
                     }
                 }
@@ -494,19 +507,20 @@
 
             // 喷泉烟花
             createFountainExplosion(x, y, color) {
-                const baseCount = 150;
+                const baseCount = 40;
                 const particleCount = Math.floor(baseCount * this.particleMultiplier);
+                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let i = 0; i < particleCount; i++) {
                     if (this.particles.length >= this.maxParticles) break;
                     const angle = Math.random() * Math.PI * 0.6 + Math.PI * 0.7;
-                    const velocity = Math.random() * 10 + 5;
+                    const velocity = baseRadius * (0.7 + Math.random() * 0.3);
                     this.particles.push({
                         x: x + (Math.random() - 0.5) * 20,
                         y: y,
-                        vx: Math.cos(angle) * velocity * 0.3,
-                        vy: Math.sin(angle) * velocity,
-                        life: 1 * this.particleLifeMultiplier,
-                        decay: 0.008 / this.particleLifeMultiplier,
+                        vx: Math.cos(angle) * velocity / 30,
+                        vy: Math.sin(angle) * velocity / 30,
+                        life: 1.2 * this.particleLifeMultiplier,
+                        decay: 0.01 / this.particleLifeMultiplier,
                         color: ['#00d2d3', '#4ecdc4', '#45b7d1'][Math.floor(Math.random() * 3)],
                         size: Math.random() * 3 + 1,
                         gravity: 0.15,
@@ -518,24 +532,25 @@
             // 柳叶烟花
             createWillowExplosion(x, y, color) {
                 const branches = 8;
-                const basePerBranch = 25;
+                const basePerBranch = 8;
                 const particlesPerBranch = Math.floor(basePerBranch * this.particleMultiplier);
+                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let branch = 0; branch < branches; branch++) {
                     const angle = (Math.PI * 2 * branch) / branches;
                     for (let i = 0; i < particlesPerBranch; i++) {
                         if (this.particles.length >= this.maxParticles) break;
-                        const velocity = Math.random() * 4 + 2;
+                        const velocity = baseRadius * (0.7 + Math.random() * 0.3);
                         const drift = (Math.random() - 0.5) * 0.3;
                         this.particles.push({
                             x: x, y: y,
-                            vx: Math.cos(angle + drift) * velocity,
-                            vy: Math.sin(angle + drift) * velocity,
-                            life: 1 * this.particleLifeMultiplier,
-                            decay: 0.006 / this.particleLifeMultiplier,
+                            vx: Math.cos(angle + drift) * velocity / 30,
+                            vy: Math.sin(angle + drift) * velocity / 30,
+                            life: 1.2 * this.particleLifeMultiplier,
+                            decay: 0.009 / this.particleLifeMultiplier,
                             color: ['#7bed9f', '#96ceb4', '#6c5ce7'][Math.floor(Math.random() * 3)],
                             size: Math.random() * 2 + 1,
                             gravity: 0.2,
-                            resistance: 0.94,
+                            resistance: 0.95,
                             trail: []
                         });
                     }
@@ -547,48 +562,50 @@
                 this.createBurstExplosion(x, y, color);
                 setTimeout(() => {
                     const directions = [0, Math.PI/2, Math.PI, Math.PI*3/2];
-                    directions.forEach(angle => {
-                        const distance = 50;
+                    const baseCount = 8;
+                    for (const angle of directions) {
+                        const distance = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                         const newX = x + Math.cos(angle) * distance;
                         const newY = y + Math.sin(angle) * distance;
-                        for (let i = 0; i < 20 * this.particleMultiplier; i++) {
+                        for (let i = 0; i < baseCount * this.particleMultiplier; i++) {
                             if (this.particles.length >= this.maxParticles) break;
                             const particleAngle = angle + (Math.random() - 0.5) * 0.8;
-                            const velocity = Math.random() * 6 + 3;
+                            const velocity = distance * (0.7 + Math.random() * 0.3);
                             this.particles.push({
                                 x: newX, y: newY,
-                                vx: Math.cos(particleAngle) * velocity,
-                                vy: Math.sin(particleAngle) * velocity,
-                                life: 0.8 * this.particleLifeMultiplier,
-                                decay: 0.02 / this.particleLifeMultiplier,
+                                vx: Math.cos(particleAngle) * velocity / 30,
+                                vy: Math.sin(particleAngle) * velocity / 30,
+                                life: 1.2 * this.particleLifeMultiplier,
+                                decay: 0.012 / this.particleLifeMultiplier,
                                 color: this.getRandomColor(),
                                 size: Math.random() * 3 + 2,
                                 gravity: 0.1,
-                                resistance: 0.98
+                                resistance: 0.97
                             });
                         }
-                    });
+                    }
                 }, 300);
             }
 
             // 牡丹烟花
             createPeonyExplosion(x, y, color) {
-                const layers = 4;
+                const layers = 3;
+                const baseCount = 16;
+                const baseRadius = Math.min(this.canvas.width, this.canvas.height) * 0.25;
                 for (let layer = 0; layer < layers; layer++) {
-                    const baseCount = 30 - layer * 5;
                     const particleCount = Math.floor(baseCount * this.particleMultiplier);
                     const delay = layer * 80;
                     setTimeout(() => {
                         for (let i = 0; i < particleCount; i++) {
                             if (this.particles.length >= this.maxParticles) break;
                             const angle = (Math.PI * 2 * i) / particleCount;
-                            const velocity = (4 - layer) * 2;
+                            const velocity = baseRadius * (1 - layer * 0.2);
                             this.particles.push({
                                 x: x, y: y,
-                                vx: Math.cos(angle) * velocity,
-                                vy: Math.sin(angle) * velocity,
-                                life: 1 * this.particleLifeMultiplier,
-                                decay: 0.015 / this.particleLifeMultiplier,
+                                vx: Math.cos(angle) * velocity / 30,
+                                vy: Math.sin(angle) * velocity / 30,
+                                life: 1.2 * this.particleLifeMultiplier,
+                                decay: 0.012 / this.particleLifeMultiplier,
                                 color: ['#ff9ff3', '#ff6b6b', '#feca57', '#e056fd'][layer],
                                 size: (4 - layer) + 1,
                                 gravity: 0.08,
@@ -604,11 +621,10 @@
             }
 
             autoLaunch() {
-                if (this.isPlaying && this.autoMode) {
-                    if (Math.random() > 0.95) {
-                        const x = Math.random() * this.canvas.width;
-                        const y = Math.random() * (this.canvas.height * 0.4) + 50;
-                        this.createFirework(x, y);
+                // 自动模式下同屏最多2个烟花
+                if (this.isPlaying && this.autoMode && this.fireworks.length < this.maxSimultaneousFireworks) {
+                    if (Math.random() > 0.7) {
+                        this.createFirework();
                     }
                 }
                 setTimeout(() => this.autoLaunch(), this.autoLaunchInterval);
